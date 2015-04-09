@@ -84,6 +84,18 @@ item_entity.on_step = function(self, dtime)
 	if name == "default:lava_flowing"
 	or name == "default:lava_source" then
 		minetest.sound_play("builtin_item_lava", {pos=p})
+		minetest.add_particlespawner({
+			amount = 3,
+			time = 0.1,
+			minpos = {x=p.x, y=p.y, z=p.z},
+			maxpos = {x=p.x, y=p.y+0.2, z=p.z},
+			minacc = {x=-0.5,y=5,z=-0.5},
+			maxacc = {x=0.5,y=5,z=0.5},
+			minexptime = 0.1,
+			minsize = 2,
+			maxsize = 4,
+			texture = "smoke_puff.png"
+		})
 		minetest.add_particlespawner ({
 			amount = 1, time = 0.4,
 			minpos = {x = p.x, y= p.y + 0.25, z= p.z},
