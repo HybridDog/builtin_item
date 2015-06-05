@@ -1,7 +1,35 @@
 local time = tonumber(os.clock())+10
 local lastpos = vector.zero or {x=0, y=0, z=0}
-local last_tab
-local always_test
+local last_tab, always_test
+
+if not core.get_gravity then
+	local gravity,grav_updating = 10
+	function core.get_gravity()
+		if not grav_updating then
+			gravity = tonumber(core.setting_get("movement_gravity")) or gravity
+			grav_updating = true
+			core.after(50, function()
+				grav_updating = false
+			end)
+		end
+		return gravity
+	end
+	local set_setting = core.setting_set
+	function core.setting_set(name, v, ...)
+		if name == "gravity" then
+			name = "movement_gravity"
+			gravity = tonumber(v) or gravity
+		end
+		return set_setting(name, v, ...)
+	end
+	local get_setting = core.setting_get
+	function core.setting_get(name, ...)
+		if name == "gravity" then
+			name = "movement_gravity"
+		end
+		return get_setting(name, ...)
+	end
+end
 
 local function get_nodes(pos)
 	if not always_test then
@@ -77,9 +105,9 @@ local old_on_step = item_entity.on_step or function()end
 
 item_entity.on_step = function(self, dtime)
 	old_on_step(self, dtime)
-		
+
 	local p = self.object:getpos()
-	
+
 	local name = minetest.get_node(p).name
 	if name == "default:lava_flowing"
 	or name == "default:lava_source" then
@@ -125,7 +153,7 @@ item_entity.on_step = function(self, dtime)
 			elseif vec.z-p.z < 0 then
 				self.object:setvelocity({x=0,y=v.y,z=-0.5})
 			end
-			self.object:setacceleration({x=0, y=-10, z=0})
+			self.object:setacceleration({x=0, y=-core.get_gravity(), z=0})
 			self.physical_state = true
 			self.object:set_properties({
 				physical = true
