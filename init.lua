@@ -103,6 +103,7 @@ end
 local item_entity = minetest.registered_entities["__builtin:item"]
 local old_on_step = item_entity.on_step or function()end
 
+item_entity.makes_footstep_sound = true
 item_entity.on_step = function(self, dtime)
 	old_on_step(self, dtime)
 
