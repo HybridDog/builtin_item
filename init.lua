@@ -1,5 +1,5 @@
-local time = tonumber(os.clock())+10
-local lastpos = vector.zero or {x=0, y=0, z=0}
+local time = minetest.get_us_time()+10*1000000
+local lastpos = {x=0, y=0, z=0}
 local last_tab, always_test
 
 if not core.get_gravity then
@@ -33,14 +33,13 @@ end
 
 local function get_nodes(pos)
 	if not always_test then
-		local rnd_pos = vector.round(pos)
-		local t = tonumber(os.clock())
-		if vector.equals(rnd_pos, lastpos)
-		and t-time < 10 then
+		local t = minetest.get_us_time()
+		if vector.equals(pos, lastpos)
+		and t-time < 10*1000000 then
 			return last_tab
 		end
 		time = t
-		lastpos = rnd_pos
+		lastpos = pos
 		local near_objects = minetest.get_objects_inside_radius(pos, 1)
 		if #near_objects >= 2 then
 			always_test = true
@@ -108,6 +107,22 @@ item_entity.bt_timer = 0
 item_entity.on_step = function(self, dtime)
 	old_on_step(self, dtime)
 
+	if self.bt_acc
+	and not vector.equals(self.object:getacceleration(), self.bt_acc) then
+		self.object:setacceleration(self.bt_acc)
+	end
+	if self.bt_vel
+	and not vector.equals(self.object:getvelocity(), self.bt_vel) then
+		self.object:setvelocity(self.bt_vel)
+	end
+	if self.bt_phys ~= nil
+	and self.physical_state ~= self.bt_phys then
+		self.physical_state = self.bt_phys
+		self.object:set_properties({
+			physical = self.bt_phys
+		})
+	end
+
 	self.bt_timer = self.bt_timer+dtime
 	if self.bt_timer < 1 then
 		return
@@ -115,8 +130,9 @@ item_entity.on_step = function(self, dtime)
 	self.bt_timer = 0
 
 	local p = self.object:getpos()
+	local pos = vector.round(p)
 
-	local name = minetest.get_node(p).name
+	local name = minetest.get_node(pos).name
 	if name == "default:lava_flowing"
 	or name == "default:lava_source" then
 		minetest.sound_play("builtin_item_lava", {pos=p})
@@ -147,27 +163,32 @@ item_entity.on_step = function(self, dtime)
 	end
 
 	local tmp = minetest.registered_nodes[name]
-	if tmp
-	and tmp.liquidtype == "flowing" then
-		local vec = get_flowing_dir(self.object:getpos())
+	if not tmp then
+		return
+	end
+	local acc
+	if tmp.liquidtype then
+		acc = {x=0, y=core.get_gravity()*(((p.y-.5)%1)*.9-1), z=0}
+		self.object:setacceleration(acc)
+		self.bt_acc = acc
+	else
+		self.bt_acc = nil
+	end
+	if tmp.liquidtype == "flowing" then
+		local vec = get_flowing_dir(pos)
 		if vec then
-			local v = self.object:getvelocity()
-			if vec.x-p.x > 0 then
-				self.object:setvelocity({x=0.5,y=v.y,z=0})
-			elseif vec.x-p.x < 0 then
-				self.object:setvelocity({x=-0.5,y=v.y,z=0})
-			elseif vec.z-p.z > 0 then
-				self.object:setvelocity({x=0,y=v.y,z=0.5})
-			elseif vec.z-p.z < 0 then
-				self.object:setvelocity({x=0,y=v.y,z=-0.5})
-			end
-			self.object:setacceleration({x=0, y=-core.get_gravity(), z=0})
+			local v = vector.add(self.object:getvelocity(), vector.multiply(vector.subtract(vec, pos),.5))
+			self.bt_vel = v
+			self.object:setvelocity(v)
 			self.physical_state = true
+			self.bt_phys = true
 			self.object:set_properties({
 				physical = true
 			})
+			return
 		end
 	end
+	self.bt_vel = nil
 end
 
 minetest.register_entity(":__builtin:item", item_entity)
