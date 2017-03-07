@@ -134,7 +134,7 @@ item_entity.on_step = function(self, dtime)
 
 	local name = minetest.get_node(pos).name
 	if name == "default:lava_flowing"
-	or name == "default:lava_source" then
+	or name == "default:lava_source" then -- update to newest default please
 		minetest.sound_play("builtin_item_lava", {pos=p})
 		minetest.add_particlespawner({
 			amount = 3,
