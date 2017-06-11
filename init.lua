@@ -177,7 +177,10 @@ item_entity.on_step = function(self, dtime)
 	if tmp.liquidtype == "flowing" then
 		local vec = get_flowing_dir(pos)
 		if vec then
-			local v = vector.add(self.object:getvelocity(), vector.multiply(vector.subtract(vec, pos),.5))
+			local v = vector.add(
+				self.object:getvelocity(),
+				vector.multiply(vector.subtract(vec, pos),.5)
+			)
 			self.bt_vel = v
 			self.object:setvelocity(v)
 			self.physical_state = true
