@@ -6,28 +6,13 @@ if not core.get_gravity then
 	local gravity,grav_updating = 10
 	function core.get_gravity()
 		if not grav_updating then
-			gravity = tonumber(core.setting_get("movement_gravity")) or gravity
+			gravity = tonumber(core.settings:get("movement_gravity")) or gravity
 			grav_updating = true
 			core.after(50, function()
 				grav_updating = false
 			end)
 		end
 		return gravity
-	end
-	local set_setting = core.setting_set
-	function core.setting_set(name, v, ...)
-		if name == "gravity" then
-			name = "movement_gravity"
-			gravity = tonumber(v) or gravity
-		end
-		return set_setting(name, v, ...)
-	end
-	local get_setting = core.setting_get
-	function core.setting_get(name, ...)
-		if name == "gravity" then
-			name = "movement_gravity"
-		end
-		return get_setting(name, ...)
 	end
 end
 
@@ -196,6 +181,6 @@ end
 
 minetest.register_entity(":__builtin:item", item_entity)
 
-if minetest.setting_get("log_mods") then
+if minetest.settings:get("log_mods") then
 	minetest.log("action", "builtin_item loaded")
 end
