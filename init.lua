@@ -94,11 +94,11 @@ item_entity.on_step = function(self, dtime)
 
 	if self.bt_acc
 	and not vector.equals(self.object:getacceleration(), self.bt_acc) then
-		self.object:setacceleration(self.bt_acc)
+		self.object:set_acceleration(self.bt_acc)
 	end
 	if self.bt_vel
 	and not vector.equals(self.object:getvelocity(), self.bt_vel) then
-		self.object:setvelocity(self.bt_vel)
+		self.object:set_velocity(self.bt_vel)
 	end
 	if self.bt_phys ~= nil
 	and self.physical_state ~= self.bt_phys then
@@ -154,7 +154,7 @@ item_entity.on_step = function(self, dtime)
 	local acc
 	if tmp.liquidtype then
 		acc = {x=0, y=core.get_gravity()*(((p.y-.5)%1)*.9-1), z=0}
-		self.object:setacceleration(acc)
+		self.object:set_acceleration(acc)
 		self.bt_acc = acc
 	else
 		self.bt_acc = nil
@@ -167,7 +167,7 @@ item_entity.on_step = function(self, dtime)
 				vector.multiply(vector.subtract(vec, pos),.5)
 			)
 			self.bt_vel = v
-			self.object:setvelocity(v)
+			self.object:set_velocity(v)
 			self.physical_state = true
 			self.bt_phys = true
 			self.object:set_properties({
