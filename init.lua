@@ -89,8 +89,8 @@ local old_on_step = item_entity.on_step or function()end
 
 item_entity.makes_footstep_sound = true
 item_entity.bt_timer = 0
-item_entity.on_step = function(self, dtime)
-	old_on_step(self, dtime)
+item_entity.on_step = function(self, dtime, ...)
+	old_on_step(self, dtime, ...)
 
 	if self.bt_acc
 	and not vector.equals(self.object:getacceleration(), self.bt_acc) then
