@@ -93,11 +93,11 @@ item_entity.on_step = function(self, dtime, ...)
 	old_on_step(self, dtime, ...)
 
 	if self.bt_acc
-	and not vector.equals(self.object:getacceleration(), self.bt_acc) then
+	and not vector.equals(self.object:get_acceleration(), self.bt_acc) then
 		self.object:set_acceleration(self.bt_acc)
 	end
 	if self.bt_vel
-	and not vector.equals(self.object:getvelocity(), self.bt_vel) then
+	and not vector.equals(self.object:get_velocity(), self.bt_vel) then
 		self.object:set_velocity(self.bt_vel)
 	end
 	if self.bt_phys ~= nil
@@ -114,7 +114,7 @@ item_entity.on_step = function(self, dtime, ...)
 	end
 	self.bt_timer = 0
 
-	local p = self.object:getpos()
+	local p = self.object:get_pos()
 	local pos = vector.round(p)
 
 	local name = minetest.get_node(pos).name
@@ -163,7 +163,7 @@ item_entity.on_step = function(self, dtime, ...)
 		local vec = get_flowing_dir(pos)
 		if vec then
 			local v = vector.add(
-				self.object:getvelocity(),
+				self.object:get_velocity(),
 				vector.multiply(vector.subtract(vec, pos),.5)
 			)
 			self.bt_vel = v
