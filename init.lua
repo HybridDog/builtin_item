@@ -1,85 +1,73 @@
-local time = minetest.get_us_time()+10*1000000
-local lastpos = {x=0, y=0, z=0}
-local last_tab, always_test
-
-if not core.get_gravity then
-	local gravity,grav_updating = 10
-	function core.get_gravity()
-		if not grav_updating then
-			gravity = tonumber(core.settings:get("movement_gravity")) or gravity
-			grav_updating = true
-			core.after(50, function()
-				grav_updating = false
-			end)
-		end
-		return gravity
+-- Use the movement gravity for the downwards direction. Get the setting rarely
+local cached_gravity
+local function get_gravity()
+	if cached_gravity then
+		return cached_gravity
 	end
+	cached_gravity = tonumber(core.settings:get("movement_gravity")) or 9.81
+	core.after(50, function()
+		cached_gravity = nil
+	end)
+	return cached_gravity
 end
 
-local function get_nodes(pos)
-	if not always_test then
-		local t = minetest.get_us_time()
-		if vector.equals(pos, lastpos)
-		and t-time < 10*1000000 then
-			return last_tab
-		end
-		time = t
-		lastpos = pos
-		local near_objects = minetest.get_objects_inside_radius(pos, 1)
-		if #near_objects >= 2 then
-			always_test = true
-			minetest.after(10, function() always_test = false end)
-		end
+local neighbour_offsets = {
+	{x=-1, y=0, z=0},
+	{x=1, y=0, z=0},
+	{x=0, y=0, z=-1},
+	{x=0, y=0, z=1}
+}
+local neighbours_cache = {}
+setmetatable(neighbours_cache, {__mode = "kv"})
+local function get_neighbour_nodes(pos)
+	-- Use previously found neighbours if they are not too old
+	local vi = minetest.hash_node_position(pos)
+	local t = minetest.get_us_time()
+	if neighbours_cache[vi]
+	and t - neighbours_cache[vi][1] < 10 * 1000000 then
+		return neighbours_cache[vi][2]
 	end
-	local tab,n = {},1
-	for i = -1,1,2 do
-		for _,p in pairs({
-			{x=pos.x+i, y=pos.y, z=pos.z},
-			{x=pos.x, y=pos.y, z=pos.z+i}
-		}) do
-			tab[n] = {p, minetest.get_node(p)}
-			n = n+1
-		end
+	local neighbours = {}
+	for n = 1, 4 do
+		local p = vector.add(pos, neighbour_offsets[n])
+		neighbours[n] = p
+		neighbours[n + 4] = minetest.get_node(p)
 	end
-	if not always_test then
-		last_tab = tab
-	end
-	return tab
+	neighbours_cache[vi] = {t, neighbours}
+	return neighbours
 end
 
-local function get_flowing_dir(pos)
-	local data = get_nodes(pos)
+-- This function determines position to which the water flows
+local function get_flow_target(pos)
+	local neighbours = get_neighbour_nodes(pos)
 	local param2 = minetest.get_node(pos).param2
 	if param2 > 7 then
 		return
 	end
-	for _,i in pairs(data) do
-		local nd = i[2]
-		local name = nd.name
-		local par2 = nd.param2
-		if name == "default:water_flowing"
-		and par2 < param2 then
-			return i[1]
+	for i = 1, 4 do
+		-- If a neighbour has a lower height, flow to it
+		local node = neighbours[i + 4]
+		if node.name == "default:water_flowing"
+		and node.param2 < param2 then
+			return neighbours[i]
 		end
 	end
-	for _,i in pairs(data) do
-		local nd = i[2]
-		local name = nd.name
-		local par2 = nd.param2
-		if name == "default:water_flowing"
-		and par2 >= 11 then
-			return i[1]
+	for i = 1, 4 do
+		-- TODO
+		local node = neighbours[i + 4]
+		if node.name == "default:water_flowing"
+		and node.param2 >= 11 then
+			return neighbours[i]
 		end
 	end
-	for _,i in pairs(data) do
-		local nd = i[2]
-		local name = nd.name
-		local par2 = nd.param2
-		local tmp = minetest.registered_nodes[name]
-		if tmp
-		and not tmp.walkable
-		and name ~= "default:water_flowing" then
-			return i[1]
+	for i = 1, 4 do
+		-- TODO
+		local node = neighbours[i + 4]
+		if node.name ~= "default:water_flowing" then
+			local def = minetest.registered_nodes[node.name]
+			if def and not def.walkable then
+				return neighbours[i]
+			end
 		end
 	end
 end
@@ -92,6 +80,11 @@ item_entity.bt_timer = 0
 item_entity.on_step = function(self, dtime, ...)
 	old_on_step(self, dtime, ...)
 
+	--~ if not self.physical_state then
+		--~ return
+	--~ end
+
+	-- Force-adjust an acceleration and/or velocity if needed
 	if self.bt_acc
 	and not vector.equals(self.object:get_acceleration(), self.bt_acc) then
 		self.object:set_acceleration(self.bt_acc)
@@ -100,6 +93,8 @@ item_entity.on_step = function(self, dtime, ...)
 	and not vector.equals(self.object:get_velocity(), self.bt_vel) then
 		self.object:set_velocity(self.bt_vel)
 	end
+
+	-- TODO: was ist pyhsical state?
 	if self.bt_phys ~= nil
 	and self.physical_state ~= self.bt_phys then
 		self.physical_state = self.bt_phys
@@ -108,7 +103,8 @@ item_entity.on_step = function(self, dtime, ...)
 		})
 	end
 
-	self.bt_timer = self.bt_timer+dtime
+	-- For performance reasons, skip the remaining code except every second
+	self.bt_timer = self.bt_timer + dtime
 	if self.bt_timer < 1 then
 		return
 	end
@@ -119,7 +115,8 @@ item_entity.on_step = function(self, dtime, ...)
 
 	local name = minetest.get_node(pos).name
 	if name == "default:lava_flowing"
-	or name == "default:lava_source" then -- update to newest default please
+	or name == "default:lava_source" then
+		-- TODO: more generic burn cases
 		minetest.sound_play("builtin_item_lava", {pos=p})
 		minetest.add_particlespawner({
 			amount = 3,
@@ -147,40 +144,38 @@ item_entity.on_step = function(self, dtime, ...)
 		return
 	end
 
-	local tmp = minetest.registered_nodes[name]
-	if not tmp then
+	local def = minetest.registered_nodes[name]
+	if not def then
 		return
 	end
-	local acc
-	if tmp.liquidtype then
-		acc = {x=0, y=core.get_gravity()*(((p.y-.5)%1)*.9-1), z=0}
+	-- Adjust the acceleration in liquid nodes
+	self.bt_acc = nil
+	self.bt_vel = nil
+	if def.liquidtype then
+		-- Set the strongest acceleration when we are in the middle of the node
+		local acc_strength = 1.0 - ((p.y - 0.5) % 1.0) * 0.9
+		local acc = {x = 0, y = -acc_strength * get_gravity(), z = 0}
 		self.object:set_acceleration(acc)
 		self.bt_acc = acc
-	else
-		self.bt_acc = nil
 	end
-	if tmp.liquidtype == "flowing" then
-		local vec = get_flowing_dir(pos)
-		if vec then
-			local v = vector.add(
-				self.object:get_velocity(),
-				vector.multiply(vector.subtract(vec, pos),.5)
-			)
-			self.bt_vel = v
-			self.object:set_velocity(v)
-			self.physical_state = true
-			self.bt_phys = true
-			self.object:set_properties({
-				physical = true
-			})
-			return
-		end
+	if def.liquidtype ~= "flowing" then
+		return
 	end
-	self.bt_vel = nil
+	local vec = get_flow_target(pos)
+	if not vec then
+		return
+	end
+	local v = vector.add(
+		self.object:get_velocity(),
+		vector.multiply(vector.subtract(vec, pos),.5)
+	)
+	self.bt_vel = v
+	self.object:set_velocity(v)
+	self.physical_state = true
+	self.bt_phys = true
+	self.object:set_properties({
+		physical = true
+	})
 end
 
 minetest.register_entity(":__builtin:item", item_entity)
-
-if minetest.settings:get("log_mods") then
-	minetest.log("action", "builtin_item loaded")
-end
