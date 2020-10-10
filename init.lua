@@ -7,8 +7,8 @@ local function is_flowing_liquid(nodename)
 	return def and def.liquidtype == "flowing"
 end
 
--- get_flow_raw determines the fluid flow vector, or returns nothing if
--- the flow is zero
+-- get_flow_raw determines the horizontal flow vector for a flowing liquid node,
+-- or returns nothing if the flow is zero
 local neighbour_offsets = {
 	{x=-1, y=0, z=0},
 	{x=1, y=0, z=0},
@@ -22,50 +22,32 @@ local function get_flow_raw(pos)
 		-- The liquid has full height and flows downwards
 		return
 	end
-	local neighbours = {}
-	for n = 1, 4 do
-		local p = vector.add(pos, neighbour_offsets[n])
-		neighbours[n] = minetest.get_node(p)
-	end
-	if param2 < 8 then
-		-- The liquid does not flow downwards
-		for i = 1, 4 do
-			-- Flow to a neighbouring free space if possible
-			local node = neighbours[i]
-			local def = minetest.registered_nodes[node.name]
-			if def and not def.walkable and def.liquidtype == "none" then
-				return neighbour_offsets[i]
-			end
-		end
-		-- Find a liquid neighbour with lowest height
-		local min_height_neig = param2
-		local min_neighbour
-		for i = 1, 4 do
-			local node = neighbours[i]
-			local height_neigh = node.param2 % 8
-			if height_neigh < min_height_neig
-			and is_flowing_liquid(node.name) then
-				min_height_neig = height_neigh
-				min_neighbour = neighbour_offsets[i]
-			end
-		end
-		if min_neighbour then
-			return min_neighbour
-		end
-		-- No free neighbour and no flowing liquid neighbour
-	end
-	-- The flowing liquid ends here in the XZ plane, so determine the
-	-- flow from higher neighbour nodes
 	local flow = {x = 0, y = 0, z = 0}
-	for i = 1, 4 do
-		local node = neighbours[i]
-		local height_neigh = node.param2 % 8
-		if is_flowing_liquid(node.name) then
-			-- A higher liquid is coming from there
-			flow = vector.subtract(flow, neighbour_offsets[i])
+	local height = param2 % 8
+	for n = 1, 4 do
+		local node = minetest.get_node(vector.add(pos, neighbour_offsets[n]))
+		local def = minetest.registered_nodes[node.name]
+		local height_other
+		if not def or def.walkable then
+			-- A solid node, so no flow happens
+			height_other = height
+		elseif def.liquidtype == "source" then
+			-- Assume that relevant liquid comes from this source
+			height_other = 8
+		elseif def.liquidtype == "flowing" then
+			-- This neighbour is also a flowing liquid
+			height_other = node.param2 % 8
+		else
+			-- There is a free space, e.g. air or a plant
+			height_other = 0
 		end
+		local fl = vector.multiply(neighbour_offsets[n], height - height_other)
+		flow = vector.add(flow, fl)
 	end
-	return not vector.equals(flow, {x = 0, y = 0, z = 0}) and flow or nil
+	if vector.equals(flow, {x = 0, y = 0, z = 0}) then
+		return
+	end
+	return vector.normalize(flow)
 end
 
 -- get_flow caches the results from get_flow_raw for 10 s
