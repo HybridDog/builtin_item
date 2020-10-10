@@ -103,36 +103,6 @@ item_entity.on_step = function(self, dtime, ...)
 	local pos = vector.round(p)
 	local nodename = minetest.get_node(pos).name
 
-	-- Burn the item if it is in lava
-	if nodename == "default:lava_flowing"
-	or nodename == "default:lava_source" then
-		minetest.sound_play("builtin_item_lava", {pos=p})
-		minetest.add_particlespawner({
-			amount = 3,
-			time = 0.1,
-			minpos = {x=p.x, y=p.y, z=p.z},
-			maxpos = {x=p.x, y=p.y+0.2, z=p.z},
-			minacc = {x=-0.5,y=5,z=-0.5},
-			maxacc = {x=0.5,y=5,z=0.5},
-			minexptime = 0.1,
-			minsize = 2,
-			maxsize = 4,
-			texture = "smoke_puff.png"
-		})
-		minetest.add_particlespawner ({
-			amount = 1, time = 0.4,
-			minpos = {x = p.x, y= p.y + 0.25, z= p.z},
-			maxpos = {x = p.x, y= p.y + 0.5, z= p.z},
-			minexptime = 0.2, maxexptime = 0.4,
-			minsize = 4, maxsize = 6,
-			collisiondetection = false,
-			vertical = false,
-			texture = "fire_basic_flame.png",
-		})
-		self.object:remove()
-		return
-	end
-
 	if self.bt_reset_velocity then
 		-- Set the item acceleration to its default (changed again below)
 		self.object:set_acceleration({x=0, y=-movement_gravity, z=0})
