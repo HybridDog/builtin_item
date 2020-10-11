@@ -1,11 +1,7 @@
 -- Use the movement gravity for the downwards acceleration.
 -- The setting may change in-game but for simplicity we don't support this.
-local movement_gravity = tonumber(core.settings:get("movement_gravity")) or 9.81
-
-local function is_flowing_liquid(nodename)
-	local def = minetest.registered_nodes[nodename]
-	return def and def.liquidtype == "flowing"
-end
+local movement_gravity = tonumber(minetest.settings:get("movement_gravity"))
+	or 9.81
 
 -- get_flow_raw determines the horizontal flow vector for a flowing liquid node,
 -- or returns nothing if the flow is zero
